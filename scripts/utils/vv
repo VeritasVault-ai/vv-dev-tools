@@ -37,11 +37,11 @@ show_help() {
   
   echo -e "${YELLOW}Workspace Commands:${NC}"
   echo -e "  ${GREEN}vv${NC}                 Open the main multi-root workspace"
-  echo -e "  ${GREEN}vv chain${NC}           Open the w-chain-services workspace"
-  echo -e "  ${GREEN}vv docs${NC}            Open the w-docs workspace"
-  echo -e "  ${GREEN}vv game${NC}            Open the w-game-suite workspace"
-  echo -e "  ${GREEN}vv iac${NC}             Open the w-iac workspace"
-  echo -e "  ${GREEN}vv landing${NC}         Open the w-landing workspace"
+  echo -e "  ${GREEN}vv chain${NC}           Open the vv-chain-services workspace"
+  echo -e "  ${GREEN}vv docs${NC}            Open the vv-docs workspace"
+  echo -e "  ${GREEN}vv game${NC}            Open the vv-game-suite workspace"
+  echo -e "  ${GREEN}vv iac${NC}             Open the vv-iac workspace"
+  echo -e "  ${GREEN}vv landing${NC}         Open the vv-landing workspace"
   
   echo -e "\n${YELLOW}Configuration Commands:${NC}"
   echo -e "  ${GREEN}vv config dev-dir${NC}  Show or set the development directory"
@@ -78,19 +78,19 @@ open_workspace() {
       workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/vv-projects.code-workspace"
       ;;
     "chain")
-      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/w-chain-services.code-workspace"
+      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/vv-chain-services.code-workspace"
       ;;
     "docs")
-      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/w-docs.code-workspace"
+      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/vv-docs.code-workspace"
       ;;
     "game")
-      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/w-game-suite.code-workspace"
+      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/vv-game-suite.code-workspace"
       ;;
     "iac")
-      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/w-iac.code-workspace"
+      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/vv-iac.code-workspace"
       ;;
     "landing")
-      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/w-landing.code-workspace"
+      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/vv-landing.code-workspace"
       ;;
     *)
       # Check if there's a custom workspace with this name
@@ -105,6 +105,12 @@ open_workspace() {
   
   if [ -f "$workspace_file" ]; then
     echo -e "${GREEN}Opening workspace: ${workspace_file}${NC}"
+    # Check if code command is available
+    if ! command -v code &> /dev/null; then
+      echo -e "${RED}Error: VS Code ('code' command) is not installed or not in PATH.${NC}"
+      echo -e "${YELLOW}Please install VS Code and ensure the command line tool is installed.${NC}"
+      return 1
+    fi
     code "$workspace_file"
   else
     echo -e "${RED}Workspace file not found: ${workspace_file}${NC}"
@@ -135,11 +141,11 @@ manage_config() {
     "list")
       echo -e "${YELLOW}Available Workspaces:${NC}"
       echo -e "  ${GREEN}main${NC} - Main multi-root workspace"
-      echo -e "  ${GREEN}chain${NC} - w-chain-services workspace"
-      echo -e "  ${GREEN}docs${NC} - w-docs workspace"
-      echo -e "  ${GREEN}game${NC} - w-game-suite workspace"
-      echo -e "  ${GREEN}iac${NC} - w-iac workspace"
-      echo -e "  ${GREEN}landing${NC} - w-landing workspace"
+      echo -e "  ${GREEN}chain${NC} - vv-chain-services workspace"
+      echo -e "  ${GREEN}docs${NC} - vv-docs workspace"
+      echo -e "  ${GREEN}game${NC} - vv-game-suite workspace"
+      echo -e "  ${GREEN}iac${NC} - vv-iac workspace"
+      echo -e "  ${GREEN}landing${NC} - vv-landing workspace"
       
       # List custom workspaces
       if [ -d "${VV_WORKSPACES_DIR}" ]; then
@@ -182,7 +188,24 @@ manage_scripts() {
         return 1
       fi
       
+      # Check if the script file exists
       if [ -f "$script_path" ]; then
+        # Check if the file is executable
+        if [ ! -x "$script_path" ]; then
+          echo -e "${YELLOW}Warning: Script is not executable. Making it executable...${NC}"
+          chmod +x "$script_path"
+        fi
+        
+        # Check for name conflicts
+        if [ -f "${VV_SCRIPTS_DIR}/${script_name}" ]; then
+          echo -e "${YELLOW}Warning: A script with name '${script_name}' already exists.${NC}"
+          read -p "Do you want to overwrite it? (y/n) " confirm
+          if [ "$confirm" != "y" ]; then
+            echo -e "${YELLOW}Script addition cancelled.${NC}"
+            return 0
+          fi
+        fi
+        
         cp "$script_path" "${VV_SCRIPTS_DIR}/${script_name}"
         chmod +x "${VV_SCRIPTS_DIR}/${script_name}"
         echo -e "${GREEN}Script '${script_name}' added successfully${NC}"

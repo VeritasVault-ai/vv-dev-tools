@@ -53,6 +53,7 @@ function Show-Help {
     Write-Host "  status, st      - Check git status of all repositories"
     Write-Host "  pull            - Pull all repositories"
     Write-Host "  fix             - Fix workspace files"
+    Write-Host "  vercel-env      - Get Vercel environment variables for a project"
     Write-Host "  help            - Show this help"
     Write-Host ""
     Write-Host "Examples:" -ForegroundColor Yellow
@@ -60,6 +61,8 @@ function Show-Help {
     Write-Host "  vv ws main      - Open the main workspace"
     Write-Host "  vv status       - Check git status of all repositories"
     Write-Host "  vv fix          - Fix workspace files"
+    Write-Host "  vv vercel-env   - Get Vercel environment variables for current directory"
+    Write-Host "  vv vercel-env vv-landing production - Get production env vars for vv-landing"
 }
 
 function Open-Workspace {
@@ -141,6 +144,15 @@ function List-Workspaces {
     }
 }
 
+# Helper function to get all VV repositories
+function Get-VVRepositories {
+    # Exclude vv-dev-tools and the nested 'vv' directory
+    $vvRepos = Get-ChildItem -Path $VV_DIR -Directory | 
+               Where-Object { $_.Name -ne "vv-dev-tools" -and $_.Name -ne "vv" -and $_.Name -ne "_v0" }
+    
+    return $vvRepos
+}
+
 function Check-Status {
     # Get all repositories under VV directory
     Write-Host "Looking for repositories in: $VV_DIR" -ForegroundColor Cyan
@@ -151,10 +163,7 @@ function Check-Status {
         Write-Host "  - $($_.Name)" -ForegroundColor White
     }
     
-    # Exclude vv-dev-tools and the nested 'vv' directory
-    $vvRepos = Get-ChildItem -Path $VV_DIR -Directory | 
-               Where-Object { $_.Name -ne "vv-dev-tools" -and $_.Name -ne "vv" -and $_.Name -ne "_v0" } | 
-               Select-Object -ExpandProperty FullName
+    $vvRepos = Get-VVRepositories | Select-Object -ExpandProperty FullName
     
     Write-Host "Found repositories: $($vvRepos.Count)" -ForegroundColor Cyan
     foreach ($repo in $vvRepos) {
@@ -191,10 +200,7 @@ function Check-Status {
 
 function Pull-Repositories {
     # Get all repositories under VV directory
-    # Exclude vv-dev-tools and the nested 'vv' directory
-    $vvRepos = Get-ChildItem -Path $VV_DIR -Directory | 
-               Where-Object { $_.Name -ne "vv-dev-tools" -and $_.Name -ne "vv" -and $_.Name -ne "_v0" } | 
-               Select-Object -ExpandProperty FullName
+    $vvRepos = Get-VVRepositories | Select-Object -ExpandProperty FullName
     
     if ($vvRepos.Count -eq 0) {
         Write-Host "No repositories found in $VV_DIR" -ForegroundColor Yellow
@@ -250,10 +256,7 @@ function Fix-WorkspaceFiles {
         Write-Host "  - $($_.Name)" -ForegroundColor White
     }
     
-    # Exclude vv-dev-tools and the nested 'vv' directory
-    $vvRepos = Get-ChildItem -Path $VV_DIR -Directory | 
-               Where-Object { $_.Name -ne "vv-dev-tools" -and $_.Name -ne "vv" -and $_.Name -ne "_v0" } | 
-               Select-Object -ExpandProperty Name
+    $vvRepos = Get-VVRepositories | Select-Object -ExpandProperty Name
     
     Write-Host "Found repositories:" -ForegroundColor Cyan
     foreach ($repo in $vvRepos) {
@@ -268,9 +271,7 @@ function Fix-WorkspaceFiles {
         if ($shouldCreateDirs -eq "y") {
             Create-StandardDirectories
             # Update the list after creating directories
-            $vvRepos = Get-ChildItem -Path $VV_DIR -Directory | 
-                      Where-Object { $_.Name -ne "vv-dev-tools" -and $_.Name -ne "vv" -and $_.Name -ne "_v0" } | 
-                      Select-Object -ExpandProperty Name
+            $vvRepos = Get-VVRepositories | Select-Object -ExpandProperty Name
         } else {
             return
         }
@@ -330,6 +331,68 @@ function Fix-WorkspaceFiles {
     Write-Host "Created main workspace file at $mainWorkspacePath" -ForegroundColor Green
 }
 
+function Get-VercelEnv {
+    param (
+        [string]$ProjectName,
+        [string]$Environment = "production"
+    )
+    
+    # If no project name is provided, use the current directory name
+    if (-not $ProjectName) {
+        $ProjectName = (Get-Item -Path .).Name
+        Write-Host "No project name provided, using current directory name: $ProjectName" -ForegroundColor Yellow
+    }
+    
+    Write-Host "Fetching environment variables for $ProjectName ($Environment)..." -ForegroundColor Blue
+    
+    # Check if we need to navigate to a specific project directory
+    $projectPath = Join-Path -Path $VV_DIR -ChildPath $ProjectName
+    $currentLocation = Get-Location
+    $needToChangeDir = $false
+    
+    if (Test-Path $projectPath -PathType Container) {
+        Push-Location $projectPath
+        $needToChangeDir = $true
+        Write-Host "Changed directory to: $projectPath" -ForegroundColor Cyan
+    }
+    
+    # Directly use npx vercel env pull without token
+    Write-Host "Pulling environment variables..." -ForegroundColor Yellow
+    npx vercel env pull --environment $Environment .env.vercel --yes
+    
+    if (Test-Path ".env.vercel") {
+        Write-Host "Environment variables have been saved to .env.vercel" -ForegroundColor Green
+        Write-Host "Contents of .env.vercel:" -ForegroundColor Yellow
+        Get-Content .env.vercel
+    } else {
+        Write-Host "Failed to fetch environment variables." -ForegroundColor Red
+        Write-Host "Make sure the project exists and you have the right permissions." -ForegroundColor Yellow
+        
+        # If first attempt failed, try logging in
+        Write-Host "Attempting to log in to Vercel..." -ForegroundColor Yellow
+        npx vercel login
+        
+        # Try again after login
+        Write-Host "Trying again to pull environment variables..." -ForegroundColor Yellow
+        npx vercel env pull --environment $Environment .env.vercel --yes
+        
+        if (Test-Path ".env.vercel") {
+            Write-Host "Environment variables have been saved to .env.vercel" -ForegroundColor Green
+            Write-Host "Contents of .env.vercel:" -ForegroundColor Yellow
+            Get-Content .env.vercel
+        } else {
+            Write-Host "Still failed to fetch environment variables." -ForegroundColor Red
+            Write-Host "Please check your Vercel project configuration." -ForegroundColor Yellow
+        }
+    }
+    
+    # Return to original directory if we changed it
+    if ($needToChangeDir) {
+        Pop-Location
+        Write-Host "Returned to: $currentLocation" -ForegroundColor Cyan
+    }
+}
+
 # Main command processing
 switch ($Command) {
     "workspace" { Open-Workspace ($Arguments | Select-Object -First 1) }
@@ -340,6 +403,12 @@ switch ($Command) {
     "st" { Check-Status }
     "pull" { Pull-Repositories }
     "fix" { Fix-WorkspaceFiles }
+    "vercel-env" { 
+        $projectName = $Arguments | Select-Object -First 1
+        $environment = $Arguments | Select-Object -Skip 1 -First 1
+        if (-not $environment) { $environment = "production" }
+        Get-VercelEnv -ProjectName $projectName -Environment $environment 
+    }
     "help" { Show-Help }
     "" { Show-Help }
     default { 
