@@ -1,0 +1,25 @@
+{
+"folders": [  {
+    "path": "..\\vv-chain-services"
+  },
+  {
+    "path": "..\\vv-docs"
+  },
+  {
+    "path": "..\\vv-game-suite"
+  },
+  {
+    "path": "..\\vv-iac"
+  },
+  {
+    "path": "..\\vv-landing"
+  },
+  {
+    "path": "..\\vv-dev-tools"
+  }
+],
+"settings": {
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
+}
+}

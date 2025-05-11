@@ -14,7 +14,7 @@ This repository contains shared development resources including:
 
 ## Repository Structure
 
-```
+``` text
 vv-dev-tools/
 ├── workspaces/                   # VSCode workspace files
 │   ├── vv-projects.code-workspace # Main multi-root workspace
@@ -54,21 +54,87 @@ git clone https://github.com/your-org/vv-dev-tools.git
 # Example directory structure:
 # your-main-directory/
 # ├── vv-dev-tools/
-# ├── vv-chain-services/
-# ├── vv-docs/
-# ├── vv-game-suite/
-# ├── vv-iac/
-# └── vv-landing/
+# ├── w-chain-services/
+# ├── w-docs/
+# ├── w-game-suite/
+# ├── w-iac/
+# └── w-landing/
 ```
 
-2. Open a workspace:
+2. Install the `vv` command utility:
+
+**For Unix-based systems (Linux, macOS):**
+```bash
+cd your-main-directory
+./vv-dev-tools/scripts/setup/install-vv-command.sh
+```
+
+**For Windows:**
+```powershell
+cd your-main-directory
+.\vv-dev-tools\scripts\setup\Install-VvCommand.ps1
+# Restart PowerShell or run:
+. $PROFILE
+```
+
+## The `vv` Command Utility
+
+The `vv` command provides a convenient way to work with VV projects.
+
+### Opening Workspaces
 
 ```bash
-# Open VS Code with the multi-root workspace
-code ./vv-dev-tools/workspaces/vv-projects.code-workspace
+vv                    # Opens the main multi-root workspace
+vv chain              # Opens w-chain-services workspace
+vv docs               # Opens w-docs workspace
+vv game               # Opens w-game-suite workspace
+vv iac                # Opens w-iac workspace
+vv landing            # Opens w-landing workspace
+```
 
-# Or open an individual project workspace
-code ./vv-dev-tools/workspaces/w-chain-services.code-workspace
+### Configuration Management
+
+```bash
+vv config dev-dir             # Show current development directory
+vv config dev-dir /path/to/dev # Set development directory
+vv config list                # List all available scripts and workspaces
+```
+
+### Custom Scripts
+
+You can add your own scripts to the `vv` command:
+
+**For Unix-based systems:**
+```bash
+# Add a script
+vv script add build-all /path/to/build-all.sh
+
+# Run the script
+vv build-all
+```
+
+**For Windows:**
+```powershell
+# Add a script
+vv script add build-all C:\path\to\build-all.ps1
+
+# Run the script
+vv build-all
+```
+
+**Common commands:**
+```bash
+# List all available scripts
+vv script list
+
+# Remove a script
+vv script remove build-all
+```
+
+### Getting Help
+
+```bash
+vv help               # Show help and list all available commands
 ```
 
 ## Using the Tools
@@ -84,10 +150,15 @@ Run scripts from the command line:
 
 ```bash
 # Example: Setup script
-./vv-dev-tools/scripts/setup/install-dependencies.sh
+./vv-dev-tools/scripts/setup/install-dependencies.sh  # Unix
+.\vv-dev-tools\scripts\setup\Install-Dependencies.ps1  # Windows
 
 # Example: Build script
-./vv-dev-tools/scripts/build/build-all.sh
+./vv-dev-tools/scripts/build/build-all.sh  # Unix
+.\vv-dev-tools\scripts\build\Build-All.ps1  # Windows
+
+# Or use the vv command for registered scripts
+vv build-all  # Works on both Unix and Windows
 ```
 
 ### Configurations
@@ -111,8 +182,11 @@ module.exports = {
 Copy templates as starting points for new components or projects:
 
 ```bash
-# Example: Copy a component template
+# Unix example
 cp -r ./vv-dev-tools/templates/component-templates/basic-component ./your-project/src/components/new-component
+
+# Windows example
+Copy-Item -Recurse .\vv-dev-tools\templates\component-templates\basic-component .\your-project\src\components\new-component
 ```
 
 ## Contributing

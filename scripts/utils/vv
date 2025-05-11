@@ -1,0 +1,264 @@
+#!/bin/bash
+# vv - Command utility for VV projects
+# Usage: vv [command] [args...]
+
+# Configuration directory
+VV_CONFIG_DIR="${HOME}/.vv"
+VV_SCRIPTS_DIR="${VV_CONFIG_DIR}/scripts"
+VV_WORKSPACES_DIR="${VV_CONFIG_DIR}/workspaces"
+
+# Main development directory - this should be set during installation
+VV_DEV_DIR="${VV_CONFIG_DIR}/dev_dir"
+
+# Colors for output
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+# Create config directories if they don't exist
+mkdir -p "${VV_CONFIG_DIR}"
+mkdir -p "${VV_SCRIPTS_DIR}"
+mkdir -p "${VV_WORKSPACES_DIR}"
+
+# If dev directory file doesn't exist, create it with default value
+if [ ! -f "${VV_DEV_DIR}" ]; then
+  echo "${HOME}/dev" > "${VV_DEV_DIR}"
+fi
+
+# Get the development directory
+DEV_DIR=$(cat "${VV_DEV_DIR}")
+
+# Function to display help
+show_help() {
+  echo -e "${BLUE}VV Command Utility${NC}"
+  echo -e "Usage: ${GREEN}vv [command] [args...]${NC}\n"
+  
+  echo -e "${YELLOW}Workspace Commands:${NC}"
+  echo -e "  ${GREEN}vv${NC}                 Open the main multi-root workspace"
+  echo -e "  ${GREEN}vv chain${NC}           Open the w-chain-services workspace"
+  echo -e "  ${GREEN}vv docs${NC}            Open the w-docs workspace"
+  echo -e "  ${GREEN}vv game${NC}            Open the w-game-suite workspace"
+  echo -e "  ${GREEN}vv iac${NC}             Open the w-iac workspace"
+  echo -e "  ${GREEN}vv landing${NC}         Open the w-landing workspace"
+  
+  echo -e "\n${YELLOW}Configuration Commands:${NC}"
+  echo -e "  ${GREEN}vv config dev-dir${NC}  Show or set the development directory"
+  echo -e "  ${GREEN}vv config list${NC}     List all available scripts and workspaces"
+  
+  echo -e "\n${YELLOW}Script Management:${NC}"
+  echo -e "  ${GREEN}vv script add <name> <path>${NC}    Add a new script"
+  echo -e "  ${GREEN}vv script remove <name>${NC}        Remove a script"
+  echo -e "  ${GREEN}vv script list${NC}                 List all available scripts"
+  
+  echo -e "\n${YELLOW}Custom Scripts:${NC}"
+  # Dynamically list all available custom scripts
+  if [ -d "${VV_SCRIPTS_DIR}" ]; then
+    for script in "${VV_SCRIPTS_DIR}"/*; do
+      if [ -f "$script" ] && [ -x "$script" ]; then
+        script_name=$(basename "$script")
+        echo -e "  ${GREEN}vv $script_name${NC}"
+      fi
+    done
+  fi
+  
+  echo -e "\n${YELLOW}Help:${NC}"
+  echo -e "  ${GREEN}vv help${NC}            Show this help message"
+}
+
+# Function to open a workspace
+open_workspace() {
+  local workspace=$1
+  local workspace_file=""
+  
+  case $workspace in
+    "")
+      # Default to main workspace
+      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/vv-projects.code-workspace"
+      ;;
+    "chain")
+      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/w-chain-services.code-workspace"
+      ;;
+    "docs")
+      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/w-docs.code-workspace"
+      ;;
+    "game")
+      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/w-game-suite.code-workspace"
+      ;;
+    "iac")
+      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/w-iac.code-workspace"
+      ;;
+    "landing")
+      workspace_file="${DEV_DIR}/vv-dev-tools/workspaces/w-landing.code-workspace"
+      ;;
+    *)
+      # Check if there's a custom workspace with this name
+      if [ -f "${VV_WORKSPACES_DIR}/${workspace}.code-workspace" ]; then
+        workspace_file="${VV_WORKSPACES_DIR}/${workspace}.code-workspace"
+      else
+        echo -e "${RED}Unknown workspace: ${workspace}${NC}"
+        return 1
+      fi
+      ;;
+  esac
+  
+  if [ -f "$workspace_file" ]; then
+    echo -e "${GREEN}Opening workspace: ${workspace_file}${NC}"
+    code "$workspace_file"
+  else
+    echo -e "${RED}Workspace file not found: ${workspace_file}${NC}"
+    return 1
+  fi
+}
+
+# Function to manage configuration
+manage_config() {
+  local config_cmd=$1
+  local config_arg=$2
+  
+  case $config_cmd in
+    "dev-dir")
+      if [ -z "$config_arg" ]; then
+        echo -e "${YELLOW}Current development directory:${NC} ${GREEN}$(cat "${VV_DEV_DIR}")${NC}"
+      else
+        # Update the development directory
+        if [ -d "$config_arg" ]; then
+          echo "$config_arg" > "${VV_DEV_DIR}"
+          echo -e "${GREEN}Development directory updated to: ${config_arg}${NC}"
+        else
+          echo -e "${RED}Directory does not exist: ${config_arg}${NC}"
+          return 1
+        fi
+      fi
+      ;;
+    "list")
+      echo -e "${YELLOW}Available Workspaces:${NC}"
+      echo -e "  ${GREEN}main${NC} - Main multi-root workspace"
+      echo -e "  ${GREEN}chain${NC} - w-chain-services workspace"
+      echo -e "  ${GREEN}docs${NC} - w-docs workspace"
+      echo -e "  ${GREEN}game${NC} - w-game-suite workspace"
+      echo -e "  ${GREEN}iac${NC} - w-iac workspace"
+      echo -e "  ${GREEN}landing${NC} - w-landing workspace"
+      
+      # List custom workspaces
+      if [ -d "${VV_WORKSPACES_DIR}" ]; then
+        for ws_file in "${VV_WORKSPACES_DIR}"/*.code-workspace; do
+          if [ -f "$ws_file" ]; then
+            ws_name=$(basename "$ws_file" .code-workspace)
+            echo -e "  ${GREEN}${ws_name}${NC} - Custom workspace"
+          fi
+        done
+      fi
+      
+      echo -e "\n${YELLOW}Available Scripts:${NC}"
+      if [ -d "${VV_SCRIPTS_DIR}" ]; then
+        for script in "${VV_SCRIPTS_DIR}"/*; do
+          if [ -f "$script" ] && [ -x "$script" ]; then
+            script_name=$(basename "$script")
+            echo -e "  ${GREEN}${script_name}${NC}"
+          fi
+        done
+      fi
+      ;;
+    *)
+      echo -e "${RED}Unknown config command: ${config_cmd}${NC}"
+      echo -e "Available config commands: dev-dir, list"
+      return 1
+      ;;
+  esac
+}
+
+# Function to manage scripts
+manage_scripts() {
+  local script_cmd=$1
+  local script_name=$2
+  local script_path=$3
+  
+  case $script_cmd in
+    "add")
+      if [ -z "$script_name" ] || [ -z "$script_path" ]; then
+        echo -e "${RED}Missing arguments. Usage: vv script add <name> <path>${NC}"
+        return 1
+      fi
+      
+      if [ -f "$script_path" ]; then
+        cp "$script_path" "${VV_SCRIPTS_DIR}/${script_name}"
+        chmod +x "${VV_SCRIPTS_DIR}/${script_name}"
+        echo -e "${GREEN}Script '${script_name}' added successfully${NC}"
+      else
+        echo -e "${RED}Script file not found: ${script_path}${NC}"
+        return 1
+      fi
+      ;;
+    "remove")
+      if [ -z "$script_name" ]; then
+        echo -e "${RED}Missing script name. Usage: vv script remove <name>${NC}"
+        return 1
+      fi
+      
+      if [ -f "${VV_SCRIPTS_DIR}/${script_name}" ]; then
+        rm "${VV_SCRIPTS_DIR}/${script_name}"
+        echo -e "${GREEN}Script '${script_name}' removed successfully${NC}"
+      else
+        echo -e "${RED}Script not found: ${script_name}${NC}"
+        return 1
+      fi
+      ;;
+    "list")
+      echo -e "${YELLOW}Available Scripts:${NC}"
+      if [ -d "${VV_SCRIPTS_DIR}" ]; then
+        for script in "${VV_SCRIPTS_DIR}"/*; do
+          if [ -f "$script" ] && [ -x "$script" ]; then
+            script_name=$(basename "$script")
+            echo -e "  ${GREEN}${script_name}${NC}"
+          fi
+        done
+      else
+        echo -e "${RED}No scripts directory found${NC}"
+      fi
+      ;;
+    *)
+      echo -e "${RED}Unknown script command: ${script_cmd}${NC}"
+      echo -e "Available script commands: add, remove, list"
+      return 1
+      ;;
+  esac
+}
+
+# Main command processing
+main() {
+  local command=$1
+  shift
+  
+  case $command in
+    "help")
+      show_help
+      ;;
+    "config")
+      manage_config "$@"
+      ;;
+    "script")
+      manage_scripts "$@"
+      ;;
+    "chain"|"docs"|"game"|"iac"|"landing")
+      open_workspace "$command"
+      ;;
+    "")
+      # No command, open the main workspace
+      open_workspace ""
+      ;;
+    *)
+      # Check if this is a custom script
+      if [ -f "${VV_SCRIPTS_DIR}/${command}" ] && [ -x "${VV_SCRIPTS_DIR}/${command}" ]; then
+        "${VV_SCRIPTS_DIR}/${command}" "$@"
+      else
+        # Try as a custom workspace
+        open_workspace "$command" || show_help
+      fi
+      ;;
+  esac
+}
+
+# Execute main function with all arguments
+main "$@"
