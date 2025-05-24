@@ -1,0 +1,65 @@
+name: Send Email with SendGrid
+
+on:
+  schedule:
+    # Runs every Monday at 08:00 UTC (customize as needed)
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+    inputs:
+      to:
+        description: 'Recipient email address'
+        required: true
+      subject:
+        description: 'Email subject'
+        required: true
+      body:
+        description: 'Email body (plain text or HTML)'
+        required: true
+
+jobs:
+  send_email:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install sendgrid
+
+      - name: Prepare email data
+        id: prep
+        run: |
+          echo "TO=${{ github.event.inputs.to || 'your@email.com' }}" >> $GITHUB_ENV
+          echo "SUBJECT=${{ github.event.inputs.subject || 'Scheduled Email' }}" >> $GITHUB_ENV
+          echo "BODY=${{ github.event.inputs.body || 'This is a scheduled email from GitHub Actions.' }}" >> $GITHUB_ENV
+
+      - name: Send email via SendGrid
+        env:
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          TO: ${{ env.TO }}
+          SUBJECT: ${{ env.SUBJECT }}
+          BODY: ${{ env.BODY }}
+        run: |
+          python3 <<EOF
+import os
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
+sg = SendGridAPIClient(os.environ['SENDGRID_API_KEY'])
+message = Mail(
+    from_email='no-reply@yourdomain.com',
+    to_emails=os.environ['TO'],
+    subject=os.environ['SUBJECT'],
+    html_content=os.environ['BODY']
+)
+try:
+    response = sg.send(message)
+    print(f"Status: {response.status_code}")
+except Exception as e:
+    print(e)
+EOF
