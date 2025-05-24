@@ -2,7 +2,7 @@ import os
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
-sg = SendGridAPIClient(os.environ['SENDGRID_API_KEY'])
+sg = SendGridAPIClient(os.environ['SENDGRID'])
 message = Mail(
     from_email='no-reply@yourdomain.com',
     to_emails=os.environ['TO'],
