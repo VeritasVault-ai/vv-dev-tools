@@ -40,7 +40,7 @@ jobs:
 
       - name: Send email via SendGrid
         env:
-          SENDGRID_API_KEY: ${{ secrets.SENDGRID }}
+          SENDGRID_API: ${{ secrets.SENDGRID }}
           TO: ${{ env.TO }}
           SUBJECT: ${{ env.SUBJECT }}
           BODY: ${{ env.BODY }}
